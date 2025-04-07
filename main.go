@@ -39,6 +39,7 @@ var (
 var (
 	strats = []units.Strategy{
 		strategies.NewLoopPointerArithmeticStrategy(),
+		strategies.NewParseVerifierStrategy(),
 		strategies.NewPointerArithmeticStrategy(),
 		strategies.NewPlaygroundStrategy(),
 		strategies.NewCoverageBasedStrategy(),
