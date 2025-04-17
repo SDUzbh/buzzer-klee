@@ -25,6 +25,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"buzzer/pkg/ebpf/ebpf"
 	"buzzer/pkg/strategies/oracle/oracle"
@@ -44,7 +45,25 @@ const (
 // StrategyParseVerifierLog Implements a fuzzing strategy where the results of
 // the ebpf verifier will be parsed and then compared with the actual values
 // observed at run time.
-type StrategyParseVerifierLog struct{}
+type StrategyParseVerifierLog struct {
+	isFinished        bool
+	mapFd             int
+	programCount      int
+	validProgramCount int
+	log               string
+}
+
+func NewParseVerifierStrategy() {
+	return &StrategyParseVerifierLog{isFinished: false}
+}
+
+func (o *RegisterOracle) Dump() {
+	for offset, regMap := range o.values {
+		for regNum, value := range regMap {
+			fmt.Printf("Offset: %d, Register: R%d, Value: %d\n", offset, regNum, value)
+		}
+	}
+}
 
 func (st *StrategyParseVerifierLog) generateAndValidateProgram(e strategies.ExecutorInterface, gen *Generator) (*strategies.GeneratorResult, error) {
 	for i := 0; i < 100_000; i++ {
@@ -145,8 +164,10 @@ func (st *StrategyParseVerifierLog) Fuzz(e strategies.ExecutorInterface, cm stra
 		// Program succeeded, let's validate the execution map.
 		regOracle, err := oracle.FromVerifierTrace(gr.VerifierLog)
 		if err != nil {
-			return err
+			log.Fatalf("Failed to build oracle: %v", err)
 		}
+
+		oracle.Dump()
 
 		mapSize := int32(executionRequest.GetMaps()[0].GetMapSize())
 		mapElements := exRes.GetMapElements()[0].GetElements()
@@ -171,13 +192,7 @@ func (st *StrategyParseVerifierLog) Fuzz(e strategies.ExecutorInterface, cm stra
 	return nil
 }
 
-// Playground is a strategy meant for testing, users can generate Arbitrary
-// programs and then the results of the verifier will be displayed on screen.
-type ParseVerifier struct {
-	isFinished bool
-}
-
-func (pg *ParseVerifier) GenerateProgram(ffi *units.FFI) (*pb.Program, error) {
+func (pg *StrategyParseVerifierLog) GenerateProgram(ffi *units.FFI) (*pb.Program, error) {
 
 	insn, err := InstructionSequence(
 		Mov(R0, 0),
@@ -200,7 +215,7 @@ func (pg *ParseVerifier) GenerateProgram(ffi *units.FFI) (*pb.Program, error) {
 // OnVerifyDone process the results from the verifier. Here the strategy
 // can also tell the fuzzer to continue with execution by returning true
 // or start over and generate a new program by returning false.
-func (pg *ParseVerifier) OnVerifyDone(ffi *units.FFI, verificationResult *fpb.ValidationResult) bool {
+func (pg *StrategyParseVerifierLog) OnVerifyDone(ffi *units.FFI, verificationResult *fpb.ValidationResult) bool {
 	fmt.Println(verificationResult.VerifierLog)
 	pg.isFinished = true
 	return true
@@ -208,13 +223,13 @@ func (pg *ParseVerifier) OnVerifyDone(ffi *units.FFI, verificationResult *fpb.Va
 
 // OnExecuteDone should validate if the program behaved like the
 // verifier expected, if that was not the case it should return false.
-func (pg *ParseVerifier) OnExecuteDone(ffi *units.FFI, executionResult *fpb.ExecutionResult) bool {
+func (pg *StrategyParseVerifierLog) OnExecuteDone(ffi *units.FFI, executionResult *fpb.ExecutionResult) bool {
 	return true
 }
 
 // OnError is used to determine if the fuzzer should continue on errors.
 // true represents continue, false represents halt.
-func (pg *ParseVerifier) OnError(e error) bool {
+func (pg *StrategyParseVerifierLog) OnError(e error) bool {
 	fmt.Printf("error %v\n", e)
 	return false
 }
