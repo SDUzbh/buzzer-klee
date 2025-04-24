@@ -21,39 +21,21 @@ package(
 )
 
 go_library(
-    name = "strategies",
+    name = "parseverifier",
     srcs = [
-        "base.go",
-        "cbpf_playground.go",
-        "cbpf_random_instruction.go",
-        "coverage_based.go",
-        "heap.go",
-        "loop_pointer_arithmetic.go",
-        "playground.go",
-        "pointer_arithmetic.go",
+        "generator.go",
+        "parse_verifier.go",
+    ],
+    cdeps = [
+        "//ebpf_ffi",
     ],
     cgo = 1,
-    importpath = "buzzer/pkg/strategies/strategies",
+    importpath = "buzzer/pkg/strategies/parse_verifier/parseverifier",
     deps = [
-        "//pkg/cbpf",
         "//pkg/ebpf",
         "//pkg/rand",
-        "//pkg/units",
-        "//proto:btf_go_proto",
-        "//proto:cbpf_go_proto",
-        "//proto:ebpf_go_proto",
+        "//pkg/strategies",
+        "//pkg/strategies/parse_verifier/oracle",
         "//proto:ffi_go_proto",
-        "//proto:program_go_proto",
-        "@com_github_golang_protobuf//proto",
     ],
-)
-
-go_test(
-    name = "strategies_test",
-    srcs = [
-        "heap_test.go",
-    ],
-    embed = [":strategies"],
-    importpath = "buzzer/pkg/strategies/strategies/strategies",
-    deps = [],
 )

@@ -16,7 +16,7 @@
 // ALU operations and then attempting to hunt verifier logic errors by parsing
 // the output of the vierifier log and comparing the values the verifier thinks
 // the registers will have vs the actual values that are observed at run time.
-package strategies
+package parseverifier
 
 //#include <stdlib.h>
 //void close_fd(int fd);
@@ -28,8 +28,7 @@ import (
 	"log"
 
 	"buzzer/pkg/ebpf/ebpf"
-	"buzzer/pkg/strategies/oracle/oracle"
-	"buzzer/pkg/strategies/strategies"
+	. "buzzer/pkg/strategies/oracle"
 	"buzzer/pkg/units/units"
 	epb "buzzer/proto/ebpf_go_proto"
 	fpb "buzzer/proto/ffi_go_proto"
@@ -53,7 +52,7 @@ type StrategyParseVerifierLog struct {
 	log               string
 }
 
-func NewParseVerifierStrategy() {
+func NewParseVerifierStrategy() *StrategyParseVerifierLog {
 	return &StrategyParseVerifierLog{isFinished: false}
 }
 

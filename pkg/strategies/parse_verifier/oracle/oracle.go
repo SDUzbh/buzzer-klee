@@ -18,8 +18,6 @@ package oracle
 
 import (
 	"errors"
-
-	"buzzer/pkg/ebpf/ebpf"
 )
 
 // RegisterState holds the best known state of a particular register
@@ -29,9 +27,11 @@ type RegisterState struct {
 	Value uint64
 }
 
+const RegisterCount = 10
+
 // RegisterSet is a fixed set of RegisterStates used to model the full
 // collection of registers in the VM.
-type RegisterSet [ebpf.RegisterCount]RegisterState
+type RegisterSet [RegisterCount]RegisterState
 
 // RegisterOracle is used to track the states of various registers
 // at particular offsets in the program at a specific point in time.
@@ -43,7 +43,7 @@ type RegisterOracle struct {
 // Similar to map lookups, a (value, ok) tuple is returned where the `value` is
 // only valid if `ok` is `true`.
 func (r *RegisterOracle) LookupRegValue(offset int32, register uint8) (uint64, bool, error) {
-	if int(register) > ebpf.RegisterCount {
+	if int(register) > RegisterCount {
 		return 0, false, errors.New("given register is larger than register set size")
 	}
 
@@ -57,7 +57,7 @@ func (r *RegisterOracle) LookupRegValue(offset int32, register uint8) (uint64, b
 
 // SetRegValue sets the given register number at the given program offset.
 func (r *RegisterOracle) SetRegValue(offset int32, register uint8, value uint64) error {
-	if int(register) > ebpf.RegisterCount {
+	if int(register) > RegisterCount {
 		return errors.New("given register is larger than register set size")
 	}
 
@@ -78,21 +78,4 @@ func NewRegisterOracle() *RegisterOracle {
 	oracle := new(RegisterOracle)
 	oracle.state = make(map[int32]*RegisterSet)
 	return oracle
-}
-
-// PrintOracleContent prints the contents of the RegisterOracle, including
-// the offset, register number, and value for each register.
-func PrintOracleContent(oracle *RegisterOracle) {
-	for offset := 0; offset < oracle.NumOffsets(); offset++ {
-		// Iterate over all registers (assuming a fixed set of registers)
-		for regNum := 0; regNum < 32; regNum++ { // Assuming there are 32 registers, adjust if needed.
-			// Get the value of the register for the current offset
-			regValue, err := oracle.GetRegValue(int32(offset), uint8(regNum))
-			if err != nil {
-				fmt.Printf("Error fetching register value for offset %d, register R%d: %v\n", offset, regNum, err)
-				continue
-			}
-			fmt.Printf("Offset: %d, Register: R%d, Value: %d\n", offset, regNum, regValue)
-		}
-	}
 }
