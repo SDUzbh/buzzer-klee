@@ -12,7 +12,7 @@ go_library(
         "builder.go",
         "oracle.go",
     ],
-    importpath = "buzzer/pkg/strategies/parse_verifier/oracle",
+    importpath = "buzzer/pkg/strategies/oracle",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/ebpf",

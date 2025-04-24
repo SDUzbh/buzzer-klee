@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parseverifier
+package strategies
 
 import (
 	"fmt"
 
 	. "buzzer/pkg/ebpf/ebpf"
 	"buzzer/pkg/rand"
+	pb "buzzer/proto/ebpf_go_proto"
 )
 
 // Generator is responsible for constructing the ebpf for this strategy.
@@ -45,20 +46,17 @@ type Generator struct {
 	regMap map[int32]uint8
 }
 
-func (g *Generator) generateHeader(prog *Program) []Instruction {
-	root, _ := InstructionSequence(LdMapByFd(RegR6, g.logMapFd))
-	prog.MarkRegisterInitialized(RegR6.RegisterNumber())
+func (g *Generator) generateHeader(prog *pb.Program) []*pb.Instruction {
+	root, _ := InstructionSequence(LdMapByFd(R6, g.logMapFd))
 
 	// Initializing R6 to a pointer value via a 8-byte immediate
 	// generates a wide instruction. So, two 8-byte values.
 	hSize := int32(2)
 
-	for i := prog.MinRegister; i <= prog.MaxRegister; i++ {
-		reg, _ := GetRegisterFromNumber(uint8(i))
+	for reg := R0; reg <= R10; reg++ {
 		regVal := int32(rand.SharedRNG.RandInt())
 		inst := Mov64(reg, regVal)
 		root = append(root, inst)
-		prog.MarkRegisterInitialized(reg.RegisterNumber())
 		hSize++
 	}
 	g.headerSize = hSize
@@ -66,17 +64,21 @@ func (g *Generator) generateHeader(prog *Program) []Instruction {
 }
 
 // GenerateNextInstruction is responsible for recursively building the ebpf program tree
-func (g *Generator) generateBody() []Instruction {
-	r := []Instruction{}
+func (g *Generator) generateBody() []*pb.Instruction {
+	r := []*pb.Instruction{}
 	for i := 0; i < g.instructionCount; i++ {
 		instr := RandomAluInstruction()
-		var dstReg *Register
-		if alui, ok := instr.(*AluImmInstruction); ok {
-			dstReg = alui.DstReg
-		} else if alui, ok := instr.(*AluRegInstruction); ok {
-			dstReg = alui.DstReg
-		} else {
-			fmt.Printf("Could not get dst reg for operation %v", instr)
+		var dstReg *pb.Reg
+
+		switch op := instr.Op.(type) {
+		case *pb.Instruction_AluOpcode:
+			dstReg = op.AluOpcode.DstReg
+		case *pb.Instruction_JmpOpcode:
+			dstReg = op.JmpOpcode.DstReg
+		case *pb.Instruction_MemOpcode:
+			dstReg = op.MemOpcode.DstReg
+		default:
+			fmt.Printf("Unknown instruction type: %T\n", op)
 			return nil
 		}
 
@@ -99,20 +101,20 @@ func (g *Generator) generateBody() []Instruction {
 	return r
 }
 
-func (g *Generator) generateFooter() []Instruction {
-	ins, _ := InstructionSequence(Mov64(RegR0, 0), Exit())
+func (g *Generator) generateFooter() []pb.Instruction {
+	ins, _ := InstructionSequence(Mov64(R0, 0), Exit())
 	return ins
 }
 
 // Generate is the main function that builds the ebpf for this strategy.
-func (g *Generator) Generate(prog *Program) []Instruction {
+func (g *Generator) Generate(prog *pb.Program) []pb.Instruction {
 	root := g.generateHeader(prog)
 	root = append(root, g.generateBody()...)
 	root = append(root, g.generateFooter()...)
 	return root
 }
 
-func (g *Generator) generateStateStoringSnippet(dstReg *Register) []Instruction {
+func (g *Generator) generateStateStoringSnippet(dstReg *pb.Reg) []pb.Instruction {
 	// The storing snippet looks something like this:
 	// - r0 = logCount
 	// - *(r10 - 4) = r0; Where R10 is the stack pointer, we store the value
@@ -125,15 +127,15 @@ func (g *Generator) generateStateStoringSnippet(dstReg *Register) []Instruction 
 	// - *(r0) = rX; where rX is the register that was the destination of
 	//   the random operation.
 	root, _ := InstructionSequence(
-		Mov64(RegR0, g.logCount),
-		StW(RegR10, RegR0, -4),
-		Mov64(RegR1, RegR6),
-		Mov64(RegR2, RegR10),
-		Add64(RegR2, -4),
+		Mov64(R0, g.logCount),
+		StW(R10, R0, -4),
+		Mov64(R1, R6),
+		Mov64(R2, R10),
+		Add64(R2, -4),
 		Call(MapLookup),
-		JmpNE(RegR0, 0, 1),
+		JmpNE(R0, 0, 1),
 		Exit(),
-		StDW(RegR0, dstReg, 0),
+		StDW(R0, dstReg, 0),
 	)
 
 	return root

@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	fpb "buzzer/proto/ffi_go_proto"
 )
 
 // GeneratorResult holds the state of generated programs that have been verified.
@@ -29,6 +31,12 @@ type GeneratorResult struct {
 	ProgFD       int64
 	ProgByteCode []uint64
 	VerifierLog  string
+}
+
+// ExecutorInterface is defined for mocking purposes.
+type ExecutorInterface interface {
+	ValidateProgram(prog []uint64) (*fpb.ValidationResult, error)
+	RunProgram(rpr *fpb.ExecutionRequest) (*fpb.ExecutionResult, error)
 }
 
 // WriteLogFile writes the verifier log `data` to a temporary file.
