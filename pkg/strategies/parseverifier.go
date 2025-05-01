@@ -54,17 +54,9 @@ type StrategyParseVerifierLog struct {
 	log               string
 }
 
-func (o *RegisterOracle) Dump() {
-	for offset, regMap := range o.values {
-		for regNum, value := range regMap {
-			fmt.Printf("Offset: %d, Register: R%d, Value: %d\n", offset, regNum, value)
-		}
-	}
-}
-
 func (st *StrategyParseVerifierLog) generateAndValidateProgram(e ExecutorInterface, gen *Generator) (*GeneratorResult, error) {
 	for i := 0; i < 100_000; i++ {
-		prog, err := ebpf.New( /*mapSize=*/ 1000 /*minReg=*/, ebpf.RegR7.RegisterNumber() /*maxReg=*/, ebpf.RegR9.RegisterNumber())
+		prog, err := ebpf.New( /*mapSize=*/ 1000 /*minReg=*/, ebpf.R7 /*maxReg=*/, ebpf.R9)
 		gen.logMapFd = prog.LogMap()
 		prog.Instructions = gen.Generate(prog)
 		if err != nil {

@@ -18,6 +18,7 @@ package oracle
 
 import (
 	"errors"
+	"fmt"
 )
 
 // RegisterState holds the best known state of a particular register
@@ -78,4 +79,16 @@ func NewRegisterOracle() *RegisterOracle {
 	oracle := new(RegisterOracle)
 	oracle.state = make(map[int32]*RegisterSet)
 	return oracle
+}
+
+func (o *RegisterOracle) Dump() {
+	for offset, regSet := range o.state {
+		for regNum, regState := range regSet {
+			if regState.Known {
+				fmt.Printf("Offset: %d, Register: R%d, Value: %d\n", offset, regNum, regState.Value)
+			} else {
+				fmt.Printf("Offset: %d, Register: R%d, Value: UNKNOWN\n", offset, regNum)
+			}
+		}
+	}
 }
