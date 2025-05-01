@@ -15,8 +15,6 @@
 package strategies
 
 import (
-	"fmt"
-
 	. "buzzer/pkg/ebpf/ebpf"
 	"buzzer/pkg/rand"
 	pb "buzzer/proto/ebpf_go_proto"
@@ -46,9 +44,18 @@ type Generator struct {
 	regMap map[int32]uint8
 }
 
+// MarkRegisterInitialized adds `reg` to the list of registers that have been
+// initialized.
+//func MarkRegisterInitialized(a *pb.Program, reg pb.Reg) {
+//	if !(reg >= R0 && reg <= R10) {
+//		return
+//	}
+//	a.trackedRegs = append(a.trackedRegs, reg)
+//}
+
 func (g *Generator) generateHeader(prog *pb.Program) []*pb.Instruction {
 	root, _ := InstructionSequence(LdMapByFd(R6, g.logMapFd))
-
+	//MarkRegisterInitialized(prog, R6.RegisterNumber())
 	// Initializing R6 to a pointer value via a 8-byte immediate
 	// generates a wide instruction. So, two 8-byte values.
 	hSize := int32(2)
@@ -57,6 +64,7 @@ func (g *Generator) generateHeader(prog *pb.Program) []*pb.Instruction {
 		regVal := int32(rand.SharedRNG.RandInt())
 		inst := Mov64(reg, regVal)
 		root = append(root, inst)
+		//MarkRegisterInitialized(prog, R6.RegisterNumber())
 		hSize++
 	}
 	g.headerSize = hSize
@@ -68,53 +76,50 @@ func (g *Generator) generateBody() []*pb.Instruction {
 	r := []*pb.Instruction{}
 	for i := 0; i < g.instructionCount; i++ {
 		instr := RandomAluInstruction()
-		var dstReg *pb.Reg
+		var dstReg pb.Reg
 
-		switch op := instr.Op.(type) {
-		case *pb.Instruction_AluOpcode:
-			dstReg = op.AluOpcode.DstReg
-		case *pb.Instruction_JmpOpcode:
-			dstReg = op.JmpOpcode.DstReg
-		case *pb.Instruction_MemOpcode:
-			dstReg = op.MemOpcode.DstReg
-		default:
-			fmt.Printf("Unknown instruction type: %T\n", op)
-			return nil
-		}
+		dstReg = instr.GetDstReg()
 
-		stInst := g.generateStateStoringSnippet(dstReg)
-		instrLen := int32(len(instr.GenerateBytecode()))
-		instrOffset := int32(0)
-		if g.logCount == 0 {
-			instrOffset = g.headerSize
-		} else {
-			instrOffset = g.offsetMap[g.logCount-1] + g.sizeMap[g.logCount-1]
-		}
+		stInst := g.generateStateStoringSnippet(&dstReg)
+		//instrLen :=
+		//instrOffset := int32(0)
+		//if g.logCount == 0 {
+		//	instrOffset = g.headerSize
+		//} else {
+		//	instrOffset = g.offsetMap[g.logCount-1] + g.sizeMap[g.logCount-1]
+		//}
 
-		g.offsetMap[g.logCount] = instrOffset
-		g.regMap[g.logCount] = dstReg.RegisterNumber()
-		g.sizeMap[g.logCount] = instrLen
-		g.logCount++
+		//g.offsetMap[g.logCount] = instrOffset
+		//g.regMap[g.logCount] = dstReg
+		//g.sizeMap[g.logCount] = instrLen
+		//g.logCount++
+
+		//var stInstPtrs []*pb.Instruction
+		//for i := range stInst {
+		//	stInstPtrs = append(stInstPtrs, &stInst[i])
+		//}
+
 		r = append(r, instr)
 		r = append(r, stInst...)
 	}
 	return r
 }
 
-func (g *Generator) generateFooter() []pb.Instruction {
+func (g *Generator) generateFooter() []*pb.Instruction {
 	ins, _ := InstructionSequence(Mov64(R0, 0), Exit())
 	return ins
 }
 
 // Generate is the main function that builds the ebpf for this strategy.
-func (g *Generator) Generate(prog *pb.Program) []pb.Instruction {
+func (g *Generator) Generate(prog *pb.Program) []*pb.Instruction {
+
 	root := g.generateHeader(prog)
 	root = append(root, g.generateBody()...)
 	root = append(root, g.generateFooter()...)
 	return root
 }
 
-func (g *Generator) generateStateStoringSnippet(dstReg *pb.Reg) []pb.Instruction {
+func (g *Generator) generateStateStoringSnippet(dstReg *pb.Reg) []*pb.Instruction {
 	// The storing snippet looks something like this:
 	// - r0 = logCount
 	// - *(r10 - 4) = r0; Where R10 is the stack pointer, we store the value
@@ -135,7 +140,7 @@ func (g *Generator) generateStateStoringSnippet(dstReg *pb.Reg) []pb.Instruction
 		Call(MapLookup),
 		JmpNE(R0, 0, 1),
 		Exit(),
-		StDW(R0, dstReg, 0),
+		StDW(R0, *dstReg, 0),
 	)
 
 	return root

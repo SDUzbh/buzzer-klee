@@ -100,6 +100,16 @@ func EncodeInstructions(program *pb.Program) ([]byte, []byte, error) {
 	return prog_buff.Bytes(), func_buff.Bytes(), nil
 }
 
+func LenofInstruction(i *pb.Instruction) int32 {
+	encoding, err := encodeInstruction(i)
+	if err != nil {
+		fmt.Println("Encoding failed:", err)
+		return 0
+	}
+	instrLen := int32(len(encoding)) * 8
+	return instrLen
+}
+
 // To understand what each part of the encoding mean, please refer to
 // http://shortn/_mFOBeQLg2s.
 func encodeInstruction(i *pb.Instruction) ([]uint64, error) {
