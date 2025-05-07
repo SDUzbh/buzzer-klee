@@ -32,5 +32,3 @@ go_test(
         "//pkg/ebpf",
     ],  # No need to add dependencies here
 )
-
-
