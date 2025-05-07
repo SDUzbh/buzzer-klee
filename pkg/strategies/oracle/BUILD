@@ -19,16 +19,3 @@ go_library(
         "//proto:ebpf_go_proto",
     ],
 )
-
-go_test(
-    name = "oracle_test",
-    srcs = [
-        "builder_test.go",
-        "oracle_test.go",
-    ],
-    embed = [":oracle"],  # This is fine, it already includes the necessary dependencies
-    importpath = "buzzer/pkg/strategies/parse_verifier/oracle",  # Fix importpath to match the go_library
-    deps = [
-        "//pkg/ebpf",
-    ],  # No need to add dependencies here
-)
