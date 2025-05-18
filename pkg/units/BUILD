@@ -29,6 +29,7 @@ go_library(
         "metrics_collection.go",
         "metrics_server.go",
         "metrics_unit.go",
+        "symexec.go"
     ],
     cdeps = [
         "//ebpf_ffi",

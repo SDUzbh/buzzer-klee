@@ -110,7 +110,10 @@ func (pg *StrategyParseVerifierLog) OnVerifyDone(ffi *units.FFI, verificationRes
 // OnExecuteDone should validate if the program behaved like the
 // verifier expected, if that was not the case it should return false.
 func (pg *StrategyParseVerifierLog) OnExecuteDone(ffi *units.FFI, executionResult *fpb.ExecutionResult) bool {
-	return true
+	mapEl, _ := ffi.GetMapElements(pg.mapFd, 1)
+	valid := mapEl.Elements[0] == 0xCAFE
+	pg.isFinished = !valid
+	return valid
 }
 
 // OnError is used to determine if the fuzzer should continue on errors.
